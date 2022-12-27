@@ -20,19 +20,31 @@ public class CSVDiff {
         }
     }
 
-    public static List<Difference> compare(String file1, String file2) throws IOException {
+    public static List<Difference> compare(String file1, String file2, int sortColumn) throws IOException {
         List<Difference> differences = new ArrayList<>();
 
-        try (BufferedReader reader1 = new BufferedReader(new FileReader(file1));
-             BufferedReader reader2 = new BufferedReader(new FileReader(file2))) {
+        // Read both files into lists of rows
+        List<String[]> rows1 = readRows(file1);
+        List<String[]> rows2 = readRows(file2);
 
-            String line1 = reader1.readLine();
-            String line2 = reader2.readLine();
-            int row = 1;
+        // Sort the rows based on the specified column
+        rows1.sort((r1, r2) -> r1[sortColumn].compareTo(r2[sortColumn]));
+        rows2.sort((r1, r2) -> r1[sortColumn].compareTo(r2[sortColumn]));
 
-            while (line1 != null && line2 != null) {
-                String[] values1 = line1.split(",");
-                String[] values2 = line2.split(",");
+        // Compare the rows
+        int row = 1;
+        int i1 = 0;
+        int i2 = 0;
+        while (i1 < rows1.size() || i2 < rows2.size()) {
+            if (i1 == rows1.size()) {
+                differences.add(new Difference(row, 0, "", "Row not found in file1"));
+                i2++;
+            } else if (i2 == rows2.size()) {
+                differences.add(new Difference(row, 0, "Row not found in file2", ""));
+                i1++;
+            } else {
+                String[] values1 = rows1.get(i1);
+                String[] values2 = rows2.get(i2);
 
                 int col = 1;
                 for (int i = 0; i < Math.min(values1.length, values2.length); i++) {
@@ -51,14 +63,27 @@ public class CSVDiff {
                     }
                 }
 
-                line1 = reader1.readLine();
-                line2 = reader2.readLine();
-                row++;
+                i1++;
+                i2++;
             }
+            row++;
         }
 
         return differences;
     }
+    
+    private static List<String[]> readRows(String file) throws IOException {
+    List<String[]> rows = new ArrayList<>();
+    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        String line = reader.readLine();
+        while (line != null) {
+            rows.add(line.split(","));
+            line = reader.readLine();
+        }
+    }
+    return rows;
+}
+
 
     public static void main(String[] args) throws IOException {
         List<Difference> differences = compare("file1.csv", "file2.csv");
